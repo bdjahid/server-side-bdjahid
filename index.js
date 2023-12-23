@@ -32,7 +32,7 @@ async function run() {
 
         const serviceCollection = client.db('tours-guide').collection('services')
         const bookingCollection = client.db('tours-guide').collection('bookings')
-        const productCollection = client.db('tours-guide').collection('products')
+        const productCollection = client.db('tours-guide').collection('product')
 
         app.get('/services', async (req, res) => {
             const cursor = serviceCollection.find();
@@ -44,6 +44,29 @@ async function run() {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await serviceCollection.findOne(query)
+            res.send(result)
+        })
+
+        // add product
+
+        app.get('/product', async (req, res) => {
+            const cursor = productCollection.find();
+            const result = await cursor.toArray();
+            res.send(result)
+        })
+
+        app.post('/product', async (req, res) => {
+            const product = req.body;
+            console.log(product)
+            const result = await productCollection.insertOne(product);
+            res.send(result)
+        })
+
+        app.delete('/product/:id', async (req, res) => {
+            const id = req.params.id;
+            console.log(id)
+            const query = { _id: new ObjectId(id) }
+            const result = await productCollection.deleteOne(query)
             res.send(result)
         })
 
@@ -67,20 +90,6 @@ async function run() {
         })
 
 
-        // add product
-
-        app.get('/products', async (req, res) => {
-            const cursor = serviceCollection.find();
-            const result = await cursor.toArray();
-            res.send(result)
-        })
-
-        app.post('/products', async (req, res) => {
-            const product = req.body;
-            console.log(product)
-            const result = await productCollection.insertOne(product);
-            res.send(result)
-        })
 
 
         // Send a ping to confirm a successful connection
