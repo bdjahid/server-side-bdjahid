@@ -32,6 +32,7 @@ async function run() {
 
         const serviceCollection = client.db('tours-guide').collection('services')
         const bookingCollection = client.db('tours-guide').collection('bookings')
+        const productCollection = client.db('tours-guide').collection('products')
 
         app.get('/services', async (req, res) => {
             const cursor = serviceCollection.find();
@@ -49,7 +50,12 @@ async function run() {
         // post bookings
 
         app.get('/bookings', async (req, res) => {
-            const result = await bookingCollection.find().toArray();
+            console.log(req.query.email);
+            let query = {}
+            if (req.query?.email) {
+                query = { email: req.query.email }
+            }
+            const result = await bookingCollection.find(query).toArray();
             res.send(result)
         })
 
@@ -61,7 +67,20 @@ async function run() {
         })
 
 
+        // add product
 
+        app.get('/products', async (req, res) => {
+            const cursor = serviceCollection.find();
+            const result = await cursor.toArray();
+            res.send(result)
+        })
+
+        app.post('/products', async (req, res) => {
+            const product = req.body;
+            console.log(product)
+            const result = await productCollection.insertOne(product);
+            res.send(result)
+        })
 
 
         // Send a ping to confirm a successful connection
