@@ -1,18 +1,47 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken')
 const app = express();
 require('dotenv').config();
+var cookieParser = require('cookie-parser')
 const port = process.env.PORT || 5000;
 
 // middleware
-// use for token
-// const corsConfig = {
-//     origin: ['https://b8a11-client-side-bdjahid.web.app'],
-//     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE']
-// }
-app.use(cors())
+//  use for token
+const corsConfig = {
+    origin: ['http://localhost:5173'],
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE']
+}
+
+app.use(cors(corsConfig))
+app.use(cookieParser())
 app.use(express.json())
 
+// middlewares
+const logger = async (req, res, next) => {
+    console.log('called:', req.host, req.originalUrl)
+    next()
+}
+
+const verifyToken = async (req, res, next) => {
+    const token = req.cookies?.token;
+    console.log('value of token in middleware', token)
+    if (!token) {
+        return res.status(401).send({ message: 'not authorized' })
+    }
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            console.log(err)
+            return res.status(401).send({ message: 'unauthorized' })
+        }
+        console.log('value in the token', decoded)
+        req.user = decoded;
+        next()
+    })
+
+
+}
 
 
 
@@ -52,6 +81,26 @@ const serviceCollection = client.db('tours-guide').collection('services')
 const bookingCollection = client.db('tours-guide').collection('bookings')
 const productCollection = client.db('tours-guide').collection('product')
 
+app.post('/jwt', logger, async (req, res) => {
+    const user = req.body;
+    console.log(user);
+    const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '5h' })
+    // const token = jwt.sign(user, secret, { expiresIn: '2h' })
+    res
+        .cookie('token', token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none'
+        })
+        .send({ success: true })
+})
+
+app.post('/logout', async (req, res) => {
+    const user = req.body;
+    console.log('logging out', user)
+    res.clearCookie('token', { maxAge: 0 }).send({ success: true })
+});
+
 app.get('/services', async (req, res) => {
     const cursor = serviceCollection.find();
     const result = await cursor.toArray();
@@ -68,8 +117,9 @@ app.get('/services/:id', async (req, res) => {
 
 // add product
 
-app.get('/product', async (req, res) => {
+app.get('/product', logger, async (req, res) => {
     console.log(req.query.email);
+
     let query = {}
     if (req.query?.email) {
         query = { email: req.query.email }
@@ -122,8 +172,14 @@ app.delete('/product/:id', async (req, res) => {
 
 // post bookings
 
-app.get('/bookings', async (req, res) => {
+app.get('/bookings', logger, verifyToken, async (req, res) => {
     console.log(req.query.email);
+    // console.log('json web token', req.cookies)
+    console.log('user in the valid token', req.user)
+
+    if (req.query.email !== req.user.email) {
+        return res.status(403).send({ message: 'forbidden access' })
+    }
     let query = {}
     if (req.query?.email) {
         query = { email: req.query.email }
